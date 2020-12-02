@@ -3,24 +3,28 @@ package com.javalearn.sarafan.controller;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.javalearn.sarafan.domain.Message;
 import com.javalearn.sarafan.domain.Views;
+import com.javalearn.sarafan.dto.EventType;
+import com.javalearn.sarafan.dto.ObjectType;
 import com.javalearn.sarafan.repo.MessageRepo;
+import com.javalearn.sarafan.util.WsSender;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 @RestController
 @RequestMapping("message")
 public class MessageController {
     private final MessageRepo messageRepo;
+    private final BiConsumer<EventType, Message> wsSender;
 
     @Autowired
-    public MessageController(MessageRepo messageRepo) {
+    public MessageController(MessageRepo messageRepo, WsSender wsSender) {
         this.messageRepo = messageRepo;
+        this.wsSender = wsSender.getSender(ObjectType.MESSAGE, Views.IdName.class);
     }
 
     @GetMapping
@@ -38,6 +42,10 @@ public class MessageController {
     @PostMapping
     public Message create(@RequestBody Message message) {
         message.setCreationDate(LocalDateTime.now());
+        Message updatedMessage = messageRepo.save(message);
+
+        wsSender.accept(EventType.CREATE, updatedMessage);
+
         return messageRepo.save(message);
     }
 
@@ -47,17 +55,17 @@ public class MessageController {
             @RequestBody Message message
     ) {
         BeanUtils.copyProperties(message, messageFromDb, "id");
+
+        Message updatedMessage = messageRepo.save(messageFromDb);
+
+        wsSender.accept(EventType.UPDATE, updatedMessage);
+
         return messageRepo.save(messageFromDb);
     }
 
     @DeleteMapping("{id}")
     public void delete(@PathVariable("id") Message message) {
         messageRepo.delete(message);
-    }
-
-    @MessageMapping("/changeMessage")
-    @SendTo("/topic/activity")
-    public Message change(Message message) {
-        return messageRepo.save(message);
+        wsSender.accept(EventType.REMOVE, message);
     }
 }
