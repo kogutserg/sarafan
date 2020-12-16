@@ -1,6 +1,6 @@
 <template>
   <v-layout align-space-around justify-start column>
-    <message-form :messageAttr="message"/>
+    <message-form :messageAttr="message" />
     <message-row v-for="message in sortedMessages"
                  :key="message.id"
                  :message="message"
@@ -14,7 +14,6 @@ import MessageRow from 'components/messages/MessageRow.vue'
 import MessageForm from 'components/messages/MessageForm.vue'
 
 export default {
-  props: ['messages'],
   components: {
     MessageRow,
     MessageForm
@@ -34,5 +33,4 @@ export default {
 </script>
 
 <style>
-
 </style>
